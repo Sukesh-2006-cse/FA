@@ -33,7 +33,7 @@ function ApplicationForm() {
   useEffect(() => {
     const fetchLedger = async () => {
       try {
-        const response = await fetch('http://localhost:3001/ledger');
+        const response = await fetch('/api/ledger');
         if (response.ok) {
           const data = await response.json();
           setLedger(data);
@@ -90,7 +90,7 @@ function ApplicationForm() {
       console.log('Tokens generated:', Object.keys(tokenObject).length);
 
       // Save tokens to server
-      const tokenResponse = await fetch('http://localhost:3001/tokens', {
+      const tokenResponse = await fetch('/api/tokens', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -127,7 +127,7 @@ function ApplicationForm() {
       console.log('Ledger entry:', entry);
 
       // Send ledger entry to server
-      const ledgerResponse = await fetch('http://localhost:3001/ledger', {
+      const ledgerResponse = await fetch('/api/ledger', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -141,7 +141,7 @@ function ApplicationForm() {
       console.log('Ledger entry saved successfully');
 
       // Refresh the ledger
-      const refreshResponse = await fetch('http://localhost:3001/ledger');
+      const refreshResponse = await fetch('/api/ledger');
       if (refreshResponse.ok) {
         const data = await refreshResponse.json();
         setLedger(data);

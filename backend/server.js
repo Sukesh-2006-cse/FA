@@ -69,11 +69,13 @@ app.get('/ledger', async (req, res) => {
 app.post('/tokens', (req, res) => {
   const { tokens } = req.body;
   const filePath = path.join(path.dirname(__dirname), 'frontend', 'token.txt');
+  console.log('Saving tokens to:', filePath);
   fs.writeFile(filePath, JSON.stringify(tokens, null, 2), (err) => {
     if (err) {
       console.error('Error writing token.txt:', err);
       res.status(500).json({ error: 'Failed to save tokens' });
     } else {
+      console.log('Tokens saved successfully');
       res.json({ message: 'Tokens saved' });
     }
   });
