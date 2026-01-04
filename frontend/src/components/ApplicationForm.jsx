@@ -32,7 +32,7 @@ function ApplicationForm() {
   useEffect(() => {
     const fetchLedger = async () => {
       try {
-        const response = await fetch('/api/ledger');
+        const response = await fetch('http://localhost:3001/ledger');
         if (response.ok) {
           const data = await response.json();
           setLedger(data);
@@ -46,117 +46,110 @@ function ApplicationForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log('Form submission started');
 
     // Check if a resume file is uploaded
     if (!formData.resume) {
-      console.error('No resume file uploaded');
+      alert('Please upload a resume file.');
       return;
     }
 
     const file = formData.resume;
+    console.log('Resume file:', file.name, file.type);
 
-    // Extract text from the resume
-    let text = '';
-    if (file.type === 'application/pdf') {
-      const arrayBuffer = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const textContent = await page.getTextContent();
-        text += textContent.items.map(item => item.str).join(' ') + ' ';
-      }
-    } else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-      const arrayBuffer = await file.arrayBuffer();
-      const result = await mammoth.extractRawText({ arrayBuffer });
-      text = result.value;
-    } else {
-      alert('Unsupported file type. Please upload a PDF or DOCX file.');
-      return;
-    }
-
-    // Tokenize the text
-    const words = text.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(word => word.length > 0);
-    const tokenObject = {};
-    words.forEach(word => {
-      tokenObject[word] = true;
-    });
-
-    // Save tokens to token.txt on server
     try {
-      await fetch('/api/tokens', {
+      // Extract text from the resume
+      let text = '';
+      if (file.type === 'application/pdf') {
+        console.log('Processing PDF');
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          text += textContent.items.map(item => item.str).join(' ') + ' ';
+        }
+      } else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+        console.log('Processing DOCX');
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await mammoth.extractRawText({ arrayBuffer });
+        text = result.value;
+      } else {
+        alert('Unsupported file type. Please upload a PDF or DOCX file.');
+        return;
+      }
+      console.log('Extracted text length:', text.length);
+
+      // Tokenize the text
+      const words = text.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(word => word.length > 0);
+      const tokenObject = {};
+      words.forEach(word => {
+        tokenObject[word] = true;
+      });
+      console.log('Tokens generated:', Object.keys(tokenObject).length);
+
+      // Save tokens to server
+      const tokenResponse = await fetch('http://localhost:3001/tokens', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ tokens: tokenObject }),
       });
-      console.log('Tokens saved to token.txt');
-    } catch (error) {
-      console.error('Error saving tokens:', error);
-    }
+      if (!tokenResponse.ok) {
+        throw new Error('Failed to save tokens');
+      }
+      console.log('Tokens saved successfully');
 
-    try {
-      // Step 1: Read the uploaded resume file as an ArrayBuffer
+      // Generate SHA-256 hash of the resume
       const arrayBuffer = await file.arrayBuffer();
-
-      // Step 2: Generate a SHA-256 hash of the file contents
       const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
-
-      // Convert the hash buffer to a hexadecimal string
       const hashArray = Array.from(new Uint8Array(hashBuffer));
       const resume_hash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-
-      // Step 3: Store the generated hash in a variable called resume_hash (already done above)
-
-      // Step 4: Log the hash to the console for verification
       console.log('Resume hash:', resume_hash);
 
-      // Create ledger entry
-      const application_id = crypto.randomUUID(); // Generate a unique application ID
-      const timestamp = new Date().toISOString(); // Get current timestamp in ISO format
-      const entry = { application_id, resume_hash, timestamp };
+      // Create ledger entry with full form data
+      const application_id = crypto.randomUUID();
+      const timestamp = new Date().toISOString();
+      const entry = {
+        application_id,
+        resume_hash,
+        timestamp,
+        fullName: formData.fullName,
+        email: formData.email,
+        phone: formData.phone,
+        qualification: formData.qualification,
+        experience: formData.experience,
+        skills: formData.skills,
+        gender: formData.gender
+      };
+      console.log('Ledger entry:', entry);
 
-      // Log all values for debugging
-      console.log('Application ID:', application_id);
-      console.log('Resume Hash:', resume_hash);
-      console.log('Timestamp:', timestamp);
+      // Send ledger entry to server
+      const ledgerResponse = await fetch('http://localhost:3001/ledger', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(entry),
+      });
+      if (!ledgerResponse.ok) {
+        const errorText = await ledgerResponse.text();
+        throw new Error(`Failed to save to ledger: ${errorText}`);
+      }
+      console.log('Ledger entry saved successfully');
 
-      // Send the ledger entry to the server
-      try {
-        const response = await fetch('/api/ledger', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(entry),
-        });
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`Server responded with ${response.status}: ${errorText}`);
-        }
-        console.log('Ledger entry saved');
-      } catch (error) {
-        console.error('Error saving to ledger:', error);
-        alert(`Failed to save application: ${error.message}`);
-        return;
+      // Refresh the ledger
+      const refreshResponse = await fetch('http://localhost:3001/ledger');
+      if (refreshResponse.ok) {
+        const data = await refreshResponse.json();
+        setLedger(data);
       }
 
-      // Refresh the ledger from server
-      try {
-        const ledgerResponse = await fetch('/api/ledger');
-        if (ledgerResponse.ok) {
-          const data = await ledgerResponse.json();
-          setLedger(data);
-        }
-      } catch (error) {
-        console.error('Error refreshing ledger:', error);
-      }
-
-      // In a real app, send data to server including the hash
-      console.log('Form submitted:', formData);
       alert('Application submitted successfully!');
     } catch (error) {
-      console.error('Error processing resume file:', error);
+      console.error('Error during submission:', error);
+      alert(`Submission failed: ${error.message}`);
     }
   };
 
