@@ -1,5 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import './ApplicationForm.css';
+import * as pdfjsLib from 'pdfjs-dist';
+import mammoth from 'mammoth';
+import { saveAs } from 'file-saver';
+
+// Set PDF.js worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdfjs-dist/${pdfjsLib.version}/pdf.worker.min.js`;
 
 function ApplicationForm() {
   const [formData, setFormData] = useState({
@@ -26,7 +32,7 @@ function ApplicationForm() {
   useEffect(() => {
     const fetchLedger = async () => {
       try {
-        const response = await fetch('http://localhost:3001/ledger');
+        const response = await fetch('/api/ledger');
         if (response.ok) {
           const data = await response.json();
           setLedger(data);
@@ -48,6 +54,46 @@ function ApplicationForm() {
     }
 
     const file = formData.resume;
+
+    // Extract text from the resume
+    let text = '';
+    if (file.type === 'application/pdf') {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        text += textContent.items.map(item => item.str).join(' ') + ' ';
+      }
+    } else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+      const arrayBuffer = await file.arrayBuffer();
+      const result = await mammoth.extractRawText({ arrayBuffer });
+      text = result.value;
+    } else {
+      alert('Unsupported file type. Please upload a PDF or DOCX file.');
+      return;
+    }
+
+    // Tokenize the text
+    const words = text.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(word => word.length > 0);
+    const tokenObject = {};
+    words.forEach(word => {
+      tokenObject[word] = true;
+    });
+
+    // Save tokens to token.txt on server
+    try {
+      await fetch('/api/tokens', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ tokens: tokenObject }),
+      });
+      console.log('Tokens saved to token.txt');
+    } catch (error) {
+      console.error('Error saving tokens:', error);
+    }
 
     try {
       // Step 1: Read the uploaded resume file as an ArrayBuffer
@@ -77,7 +123,7 @@ function ApplicationForm() {
 
       // Send the ledger entry to the server
       try {
-        const response = await fetch('http://localhost:3001/ledger', {
+        const response = await fetch('/api/ledger', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -97,7 +143,7 @@ function ApplicationForm() {
 
       // Refresh the ledger from server
       try {
-        const ledgerResponse = await fetch('http://localhost:3001/ledger');
+        const ledgerResponse = await fetch('/api/ledger');
         if (ledgerResponse.ok) {
           const data = await ledgerResponse.json();
           setLedger(data);

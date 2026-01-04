@@ -1,6 +1,8 @@
 import express from 'express';
 import { MongoClient } from 'mongodb';
 import cors from 'cors';
+import fs from 'fs';
+import path from 'path';
 
 const app = express();
 const port = 3001;
@@ -61,6 +63,20 @@ app.get('/ledger', async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
+});
+
+// POST endpoint to save tokens
+app.post('/tokens', (req, res) => {
+  const { tokens } = req.body;
+  const filePath = path.join(path.dirname(__dirname), 'frontend', 'token.txt');
+  fs.writeFile(filePath, JSON.stringify(tokens, null, 2), (err) => {
+    if (err) {
+      console.error('Error writing token.txt:', err);
+      res.status(500).json({ error: 'Failed to save tokens' });
+    } else {
+      res.json({ message: 'Tokens saved' });
+    }
+  });
 });
 
 app.listen(port, () => {
