@@ -10,13 +10,13 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 function ApplicationForm() {
   const [formData, setFormData] = useState({
-    fullName: '',
-    email: '',
-    phone: '',
-    qualification: '',
-    experience: '',
-    skills: '',
-    gender: '',
+    fullName: 'John Doe',
+    email: 'john@example.com',
+    phone: '123-456-7890',
+    qualification: 'Bachelor\'s Degree',
+    experience: '2',
+    skills: 'JavaScript, React',
+    gender: 'Male',
     resume: null
   });
   const [ledger, setLedger] = useState([]);
@@ -98,7 +98,8 @@ function ApplicationForm() {
         body: JSON.stringify({ tokens: tokenObject }),
       });
       if (!tokenResponse.ok) {
-        throw new Error('Failed to save tokens');
+        const errorText = await tokenResponse.text();
+        throw new Error(`Failed to save tokens: ${errorText}`);
       }
       console.log('Tokens saved successfully');
 
