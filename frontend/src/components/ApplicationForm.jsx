@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import './ApplicationForm.css';
 import * as pdfjsLib from 'pdfjs-dist';
+import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import mammoth from 'mammoth';
 import { saveAs } from 'file-saver';
 
 // Set PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdfjs-dist/${pdfjsLib.version}/pdf.worker.min.js`;
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 function ApplicationForm() {
   const [formData, setFormData] = useState({
@@ -48,9 +49,9 @@ function ApplicationForm() {
     e.preventDefault();
     console.log('Form submission started');
 
-    // Check if a resume file is uploaded
-    if (!formData.resume) {
-      alert('Please upload a resume file.');
+    // Validate form data
+    if (!formData.fullName || !formData.email || !formData.phone || !formData.qualification || !formData.experience || !formData.skills || !formData.gender || !formData.resume) {
+      alert('Please fill all required fields and upload a resume.');
       return;
     }
 
@@ -165,7 +166,6 @@ function ApplicationForm() {
             name="fullName"
             value={formData.fullName}
             onChange={handleChange}
-            required
           />
         </div>
         <div className="form-group">
@@ -176,7 +176,6 @@ function ApplicationForm() {
             name="email"
             value={formData.email}
             onChange={handleChange}
-            required
           />
         </div>
         <div className="form-group">
@@ -187,7 +186,6 @@ function ApplicationForm() {
             name="phone"
             value={formData.phone}
             onChange={handleChange}
-            required
           />
         </div>
         <div className="form-group">
@@ -197,7 +195,6 @@ function ApplicationForm() {
             name="qualification"
             value={formData.qualification}
             onChange={handleChange}
-            required
           >
             <option value="">Select Qualification</option>
             <option value="High School">High School</option>
@@ -217,7 +214,6 @@ function ApplicationForm() {
             value={formData.experience}
             onChange={handleChange}
             min="0"
-            required
           />
         </div>
         <div className="form-group">
@@ -229,7 +225,6 @@ function ApplicationForm() {
             onChange={handleChange}
             rows="3"
             placeholder="List your skills, e.g., JavaScript, Python, etc."
-            required
           />
         </div>
         <div className="form-group">
@@ -242,7 +237,6 @@ function ApplicationForm() {
                 value="Male"
                 checked={formData.gender === 'Male'}
                 onChange={handleChange}
-                required
               />
               Male
             </label>
